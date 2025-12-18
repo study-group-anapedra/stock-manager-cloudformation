@@ -1,0 +1,30 @@
+[
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "prod"
+  },
+  {
+    "ParameterKey": "ProjectName",
+    "ParameterValue": "stock-manager"
+  },
+  {
+    "ParameterKey": "DBUsername",
+    "ParameterValue": "stock_prod_user"
+  },
+  {
+    "ParameterKey": "DBPassword",
+    "ParameterValue": "Senha@12345"
+  },
+  {
+    "ParameterKey": "DBInstanceType",
+    "ParameterValue": "db.t3.micro"
+  },
+  {
+    "ParameterKey": "InstanceType",
+    "ParameterValue": "t2.micro"
+  },
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "chave-estoque-dev"
+  }
+]

@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Master Stack - Web Application Architecture (Multi-AZ, Secure, Scalable)
+
+Parameters:
+  Environment: { Type: String, AllowedValues: [dev, prod] }
+  ProjectName: { Type: String }
+  DomainName: { Type: String }
+  HostedZoneId: { Type: String }
+  CertificateARN: { Type: String }
+  LatestAMIId: { Type: AWS::EC2::Image::Id }
+  KeyName: { Type: AWS::EC2::KeyPair::KeyName }
+  WebInstanceType: { Type: String, Default: t3.micro }
+  AppInstanceType: { Type: String, Default: t3.small }
+  DBInstanceClass: { Type: String, Default: db.t3.micro }
+  DBName: { Type: String, Default: stockmanager }
+  DBUsername: { Type: String, NoEcho: true }
+  DBPassword: { Type: String, NoEcho: true }
+
+Resources:
+  VPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: modules/vpc.yaml
+      Parameters:
+        Environment: { Ref: Environment }
+        ProjectName: { Ref: ProjectName }
+
+  ALBWebStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: modules/alb-web.yaml
+      Parameters:
+        Environment: { Ref: Environment }
+        ProjectName: { Ref: ProjectName }
+        VpcId: { Fn::GetAtt: [VPCStack, Outputs.VpcId] }
+        PublicSubnets: { Fn::GetAtt: [VPCStack, Outputs.PublicSubnets] }
+
+  ASGWebStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: modules/asg-web.yaml
+      Parameters:
+        Environment: { Ref: Environment }
+        ProjectName: { Ref: ProjectName }
+        VpcId: { Fn::GetAtt: [VPCStack, Outputs.VpcId] }
+        PrivateWebSubnets: { Fn::GetAtt: [VPCStack, Outputs.PrivateWebSubnets] }
+        WebTargetGroupArn: { Fn::GetAtt: [ALBWebStack, Outputs.WebTargetGroupArn] }
+        InstanceType: { Ref: WebInstanceType }
+        LatestAMIId: { Ref: LatestAMIId }
+        KeyName: { Ref: KeyName }
+
+  ALBAppStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: modules/alb-app.yaml
+      Parameters:
+        Environment: { Ref: Environment }
+        ProjectName: { Ref: ProjectName }
+        VpcId: { Fn::GetAtt: [VPCStack, Outputs.VpcId] }
+        PrivateAppSubnets: { Fn::GetAtt: [VPCStack, Outputs.PrivateAppSubnets] }
+        WebSecurityGroupId: { Fn::GetAtt: [ASGWebStack, Outputs.WebSecurityGroupId] }
+
+  ASGAppStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: modules/asg-app.yaml
+      Parameters:
+        Environment: { Ref: Environment }
+        ProjectName: { Ref: ProjectName }
+        VpcId: { Fn::GetAtt: [VPCStack, Outputs.VpcId] }
+        PrivateAppSubnets: { Fn::GetAtt: [VPCStack, Outputs.PrivateAppSubnets] }
+        AppTargetGroupArn: { Fn::GetAtt: [ALBAppStack, Outputs.AppTargetGroupArn] }
+        ALBAppSecurityGroupId: { Fn::GetAtt: [ALBAppStack, Outputs.ALBAppSecurityGroupId] }
+        InstanceType: { Ref: AppInstanceType }
+        LatestAMIId: { Ref: LatestAMIId }
+        KeyName: { Ref: KeyName }
+
+  EFSStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: modules/efs.yaml
+      Parameters:
+        Environment: { Ref: Environment }
+        ProjectName: { Ref: ProjectName }
+        VpcId: { Fn::GetAtt: [VPCStack, Outputs.VpcId] }
+        PrivateAppSubnets: { Fn::GetAtt: [VPCStack, Outputs.PrivateAppSubnets] }
+        AppSecurityGroupId: { Fn::GetAtt: [ASGAppStack, Outputs.AppSecurityGroupId] }
+
+  ElastiCacheStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: modules/elasticache.yaml
+      Parameters:
+        Environment: { Ref: Environment }
+        ProjectName: { Ref: ProjectName }
+        VpcId: { Fn::GetAtt: [VPCStack, Outputs.VpcId] }
+        PrivateAppSubnets: { Fn::GetAtt: [VPCStack, Outputs.PrivateAppSubnets] }
+        AppSecurityGroupId: { Fn::GetAtt: [ASGAppStack, Outputs.AppSecurityGroupId] }
+
+  RDSStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: modules/rds.yaml
+      Parameters:
+        Environment: { Ref: Environment }
+        ProjectName: { Ref: ProjectName }
+        VpcId: { Fn::GetAtt: [VPCStack, Outputs.VpcId] }
+        PrivateDbSubnets: { Fn::GetAtt: [VPCStack, Outputs.PrivateDbSubnets] }
+        AppSecurityGroupId: { Fn::GetAtt: [ASGAppStack, Outputs.AppSecurityGroupId] }
+        DBInstanceClass: { Ref: DBInstanceClass }
+        DBName: { Ref: DBName }
+        DBUsername: { Ref: DBUsername }
+        DBPassword: { Ref: DBPassword }
+
+# EDGE E OUTPUTS COMENTADOS (Para não gastar com domínio)
+#  EdgeStack:
+#    Type: AWS::CloudFormation::Stack
+#    Properties:
+#      TemplateURL: modules/edge.yaml
+#      Parameters:
+#        Environment: { Ref: Environment }
+#        ProjectName: { Ref: ProjectName }
+#        DomainName: { Ref: DomainName }
+#        HostedZoneId: { Ref: HostedZoneId }
+#        CertificateARN: { Ref: CertificateARN }
+#        ALBDomainName: { Fn::GetAtt: [ALBWebStack, Outputs.ALBWebDNS] }

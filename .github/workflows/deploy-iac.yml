@@ -1,0 +1,69 @@
+name: Deploy Infrastructure (CloudFormation)
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    name: Deploy CloudFormation Stack
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ============================
+      # DEFINIR AMBIENTE
+      # ============================
+      - name: Set environment variables
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "ENV=dev" >> $GITHUB_ENV
+            echo "STACK_NAME=stock-manager-dev" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "ENV=prod" >> $GITHUB_ENV
+            echo "STACK_NAME=stock-manager-prod" >> $GITHUB_ENV
+          else
+            echo "Branch não suportada"
+            exit 1
+          fi
+
+      # ============================
+      # CREDENCIAIS AWS
+      # ============================
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ============================
+      # VALIDAR TEMPLATE
+      # ============================
+      - name: Validate CloudFormation template
+        run: |
+          aws cloudformation validate-template \
+            --template-body file://templates/master.yaml
+
+      # ============================
+      # DEPLOY CLOUDFORMATION
+      # ============================
+      - name: Deploy infrastructure
+        run: |
+          echo "Deploying environment: $ENV"
+          aws cloudformation deploy \
+            --template-file templates/master.yaml \
+            --stack-name $STACK_NAME \
+            --parameter-overrides file://environments/$ENV/params-$ENV.json \
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+            --no-fail-on-empty-changeset

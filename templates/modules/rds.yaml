@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: RDS PostgreSQL (DEV / PROD) - Private and Secure
+
+Parameters:
+
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name
+
+  DBName:
+    Type: String
+    Default: stockmanager
+
+  DBUsername:
+    Type: String
+    Default: stock_user
+
+  RDSSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security Group that allows access from Application layer
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet::Id
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet::Id
+
+Conditions:
+  IsProd:
+    Fn::Equals:
+      - Ref: Environment
+      - prod
+
+Resources:
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private subnets for RDS
+      SubnetIds:
+        - Ref: PrivateSubnetA
+        - Ref: PrivateSubnetB
+
+  DBParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Family:
+        Fn::If:
+          - IsProd
+          - postgres15
+          - postgres14
+      Description: PostgreSQL parameter group
+      Parameters:
+        max_connections: "200"
+
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier:
+        Fn::Sub: stock-manager-${Environment}
+
+      Engine: postgres
+
+      EngineVersion:
+        Fn::If:
+          - IsProd
+          - "15.5"
+          - "14.10"
+
+      DBInstanceClass:
+        Fn::If:
+          - IsProd
+          - db.t3.medium
+          - db.t3.micro
+
+      AllocatedStorage: 20
+      StorageType: gp3
+
+      DBName:
+        Ref: DBName
+
+      MasterUsername:
+        Ref: DBUsername
+
+      MasterUserPassword: "{{resolve:secretsmanager:stock-manager/db-password:SecretString:password}}"
+
+      VPCSecurityGroups:
+        - Ref: RDSSecurityGroupId
+
+      DBSubnetGroupName:
+        Ref: DBSubnetGroup
+
+      DBParameterGroupName:
+        Ref: DBParameterGroup
+
+      MultiAZ:
+        Fn::If:
+          - IsProd
+          - true
+          - false
+
+      PubliclyAccessible: false
+
+      BackupRetentionPeriod:
+        Fn::If:
+          - IsProd
+          - 7
+          - 1
+
+      DeletionProtection:
+        Fn::If:
+          - IsProd
+          - true
+          - false
+
+Outputs:
+  RDSHost:
+    Description: RDS endpoint hostname
+    Value:
+      Fn::GetAtt:
+        - RDSInstance
+        - Endpoint.Address

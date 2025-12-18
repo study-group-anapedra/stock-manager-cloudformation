@@ -1,0 +1,5 @@
+[
+  { "Key": "Environment", "Value": "Development" },
+  { "Key": "Project", "Value": "StockManager" },
+  { "Key": "ManagedBy", "Value": "CloudFormation" }
+]
