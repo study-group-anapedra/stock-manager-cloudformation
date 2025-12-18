@@ -1,5 +1,4 @@
 [
-  { "Key": "Environment", "Value": "Development" },
-  { "Key": "Project", "Value": "StockManager" },
-  { "Key": "ManagedBy", "Value": "CloudFormation" }
+  { "Key": "Environment", "Value": "dev" },
+  { "Key": "Project", "Value": "stock-manager" }
 ]

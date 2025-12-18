@@ -1,30 +1,13 @@
 [
-  {
-    "ParameterKey": "Environment",
-    "ParameterValue": "prod"
-  },
-  {
-    "ParameterKey": "ProjectName",
-    "ParameterValue": "stock-manager"
-  },
-  {
-    "ParameterKey": "DBUsername",
-    "ParameterValue": "stock_prod_user"
-  },
-  {
-    "ParameterKey": "DBPassword",
-    "ParameterValue": "Senha@12345"
-  },
-  {
-    "ParameterKey": "DBInstanceType",
-    "ParameterValue": "db.t3.micro"
-  },
-  {
-    "ParameterKey": "InstanceType",
-    "ParameterValue": "t2.micro"
-  },
-  {
-    "ParameterKey": "KeyName",
-    "ParameterValue": "chave-estoque-dev"
-  }
+  { "ParameterKey": "Environment", "ParameterValue": "prod" },
+  { "ParameterKey": "ProjectName", "ParameterValue": "stock-manager" },
+  { "ParameterKey": "DBUsername", "ParameterValue": "stock_prod_user" },
+  { "ParameterKey": "DBName", "ParameterValue": "stockmanager" },
+  { "ParameterKey": "DBInstanceType", "ParameterValue": "db.t3.medium" },
+  { "ParameterKey": "InstanceType", "ParameterValue": "t3.small" },
+  { "ParameterKey": "KeyName", "ParameterValue": "chave-estoque-prod" },
+  { "ParameterKey": "LatestAMIId", "ParameterValue": "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64" },
+  { "ParameterKey": "DomainName", "ParameterValue": "seu-dominio.com" },
+  { "ParameterKey": "HostedZoneId", "ParameterValue": "Z0123456789ABCDEF" },
+  { "ParameterKey": "CertificateARN", "ParameterValue": "arn:aws:acm:us-east-1:123456789012:certificate/xyz" }
 ]
