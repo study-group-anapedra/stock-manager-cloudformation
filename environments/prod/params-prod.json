@@ -7,7 +7,7 @@
   { "ParameterKey": "InstanceType", "ParameterValue": "t3.small" },
   { "ParameterKey": "KeyName", "ParameterValue": "chave-estoque-prod" },
   { "ParameterKey": "LatestAMIId", "ParameterValue": "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64" },
-  { "ParameterKey": "DomainName", "ParameterValue": "seu-dominio.com" },
+  { "ParameterKey": "DomainName", "ParameterValue": "prod.anapedra.com" },
   { "ParameterKey": "HostedZoneId", "ParameterValue": "Z0123456789ABCDEF" },
   { "ParameterKey": "CertificateARN", "ParameterValue": "arn:aws:acm:us-east-1:123456789012:certificate/xyz" }
 ]
