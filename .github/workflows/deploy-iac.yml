@@ -32,9 +32,6 @@ jobs:
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "ENV=prod" >> $GITHUB_ENV
             echo "STACK_NAME=stock-manager-prod" >> $GITHUB_ENV
-          else
-            echo "Branch não suportada"
-            exit 1
           fi
 
       # ============================
@@ -60,13 +57,17 @@ jobs:
       # ============================
       - name: Deploy infrastructure
         run: |
-          echo "Deploying environment: $ENV"
-          # Converte o JSON em pares Chave=Valor para o CloudFormation
-          PARAMS=$(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' environments/$ENV/params-$ENV.json | tr '\n' ' ')
+          echo "Deploying environment: ${{ env.ENV }}"
           
+          # 1. Extraímos os parâmetros do JSON e formatamos corretamente para o CLI
+          # Usamos o jq para criar uma lista de Key=Value
+          PARAMS=$(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' environments/${{ env.ENV }}/params-${{ env.ENV }}.json)
+
+          # 2. Executamos o deploy passando a variável PARAMS
           aws cloudformation deploy \
             --template-file templates/master.yaml \
-            --stack-name $STACK_NAME \
+            --stack-name ${{ env.STACK_NAME }} \
             --parameter-overrides $PARAMS \
             --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
             --no-fail-on-empty-changeset
+            
