@@ -59,30 +59,30 @@ jobs:
         run: |
           echo "Deploying environment: ${{ env.ENV }}"
           
-          # 1. Busca robusta pelo Bucket de Assets (CDK ou CloudFormation)
-          # Tenta encontrar buckets que comecem com 'cdk-' ou contenham 'cdktoolkit'
-          BUCKET_NAME=$(aws s3 ls | awk '{print $3}' | grep -E "^cdk-|cdktoolkit" | head -n 1)
+          # 1. Obter Account ID para criar um nome de bucket único
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET_NAME="cfn-artifacts-${ACCOUNT_ID}-${{ env.AWS_REGION }}"
           
-          if [ -z "$BUCKET_NAME" ]; then
-            echo "Erro: Nenhum bucket de deploy (CDK/CloudFormation) foi encontrado no S3."
-            echo "Certifique-se de que o ambiente foi inicializado (bootstrap)."
-            exit 1
+          # 2. Criar o bucket se ele não existir (Garante que o deploy não pare por falta de bucket)
+          if ! aws s3 ls "s3://$BUCKET_NAME" > /dev/null 2>&1; then
+            echo "Bucket não encontrado. Criando bucket de artefatos: $BUCKET_NAME"
+            aws s3 mb "s3://$BUCKET_NAME" --region ${{ env.AWS_REGION }}
+          else
+            echo "Usando bucket de artefatos existente: $BUCKET_NAME"
           fi
-          
-          echo "Usando bucket para upload: $BUCKET_NAME"
 
-          # 2. Executar o PACKAGE
-          # Isso faz o upload dos módulos (VPC, RDS, etc) e gera o packaged.yaml
+          # 3. Executar o PACKAGE
+          # Isso faz o upload dos módulos (VPC, RDS, etc) para o S3 e gera o packaged.yaml
           aws cloudformation package \
             --template-file templates/master.yaml \
             --s3-bucket $BUCKET_NAME \
             --output-template-file packaged.yaml
 
-          # 3. Extrair parâmetros do JSON
+          # 4. Extrair parâmetros do JSON
+          # Certifique-se de que os arquivos params-dev.json e params-prod.json existam
           PARAMS=$(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' environments/${{ env.ENV }}/params-${{ env.ENV }}.json)
 
-          # 4. Executar o DEPLOY usando o arquivo gerado
-          # Agora a AWS terá acesso às URLs corretas dos módulos no S3
+          # 5. Executar o DEPLOY usando o arquivo gerado
           aws cloudformation deploy \
             --template-file packaged.yaml \
             --stack-name ${{ env.STACK_NAME }} \
