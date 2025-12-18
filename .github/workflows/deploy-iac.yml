@@ -61,9 +61,13 @@ jobs:
       - name: Deploy infrastructure
         run: |
           echo "Deploying environment: $ENV"
+
+          # Converter JSON para parâmetro Key=Value
+          PARAMS=$(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' environments/$ENV/params-$ENV.json)
+
           aws cloudformation deploy \
             --template-file templates/master.yaml \
             --stack-name $STACK_NAME \
-            --parameter-overrides file://environments/$ENV/params-$ENV.json \
+            --parameter-overrides $PARAMS \
             --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
             --no-fail-on-empty-changeset
