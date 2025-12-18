@@ -2,13 +2,13 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: RDS PostgreSQL (DEV / PROD) - Private and Secure
 
 Parameters:
-
   Environment:
     Type: String
-    AllowedValues:
-      - dev
-      - prod
-    Description: Environment name
+    AllowedValues: [dev, prod]
+  
+  # NOVO: Adicionado para receber o VpcId enviado pelo master.yaml
+  VpcId:
+    Type: AWS::EC2::VPC::Id
 
   DBName:
     Type: String
@@ -18,8 +18,8 @@ Parameters:
     Type: String
     Default: stock_user
 
-  RDSSecurityGroupId:
-    Type: AWS::EC2::SecurityGroup::Id
+  AppSecurityGroupId:
+    Type: String
     Description: Security Group that allows access from Application layer
 
   PrivateSubnetA:
@@ -28,98 +28,66 @@ Parameters:
   PrivateSubnetB:
     Type: AWS::EC2::Subnet::Id
 
+  DBPassword:
+    Type: String
+    NoEcho: true
+
 Conditions:
   IsProd:
-    Fn::Equals:
-      - Ref: Environment
-      - prod
+    Fn::Equals: [{ Ref: Environment }, prod]
 
 Resources:
-
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: Private subnets for RDS
       SubnetIds:
-        - Ref: PrivateSubnetA
-        - Ref: PrivateSubnetB
+        - { Ref: PrivateSubnetA }
+        - { Ref: PrivateSubnetB }
 
   DBParameterGroup:
     Type: AWS::RDS::DBParameterGroup
     Properties:
-      Family:
-        Fn::If:
-          - IsProd
-          - postgres15
-          - postgres14
+      Family: "postgres15"
       Description: PostgreSQL parameter group
       Parameters:
         max_connections: "200"
 
+  # NOVO: Criando o Security Group dedicado para o Banco
+  # Isso garante que o banco não seja "destruído" por conflito de regras no SG do App
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Permite acesso ao banco vindo do App"
+      VpcId: { Ref: VpcId }
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: { Ref: AppSecurityGroupId }
+
   RDSInstance:
     Type: AWS::RDS::DBInstance
     Properties:
-      DBInstanceIdentifier:
-        Fn::Sub: stock-manager-${Environment}
-
+      DBInstanceIdentifier: { Fn::Sub: "stock-manager-${Environment}" }
       Engine: postgres
-
-      EngineVersion:
-        Fn::If:
-          - IsProd
-          - "15.5"
-          - "14.10"
-
-      DBInstanceClass:
-        Fn::If:
-          - IsProd
-          - db.t3.medium
-          - db.t3.micro
-
+      EngineVersion: "15.5"
+      DBInstanceClass: { Fn::If: [IsProd, "db.t3.micro", "db.t3.micro"] }
       AllocatedStorage: 20
       StorageType: gp3
-
-      DBName:
-        Ref: DBName
-
-      MasterUsername:
-        Ref: DBUsername
-
-      MasterUserPassword: "{{resolve:secretsmanager:stock-manager/db-password:SecretString:password}}"
-
+      DBName: { Ref: DBName }
+      MasterUsername: { Ref: DBUsername }
+      MasterUserPassword: { Ref: DBPassword }
       VPCSecurityGroups:
-        - Ref: RDSSecurityGroupId
-
-      DBSubnetGroupName:
-        Ref: DBSubnetGroup
-
-      DBParameterGroupName:
-        Ref: DBParameterGroup
-
-      MultiAZ:
-        Fn::If:
-          - IsProd
-          - true
-          - false
-
+        - { Ref: RDSSecurityGroup } # Usando o SG que acabamos de criar
+      DBSubnetGroupName: { Ref: DBSubnetGroup }
+      DBParameterGroupName: { Ref: DBParameterGroup }
+      MultiAZ: { Fn::If: [IsProd, true, false] }
       PubliclyAccessible: false
-
-      BackupRetentionPeriod:
-        Fn::If:
-          - IsProd
-          - 7
-          - 1
-
-      DeletionProtection:
-        Fn::If:
-          - IsProd
-          - true
-          - false
+      BackupRetentionPeriod: { Fn::If: [IsProd, 7, 1] }
+      DeletionProtection: false 
 
 Outputs:
   RDSHost:
     Description: RDS endpoint hostname
-    Value:
-      Fn::GetAtt:
-        - RDSInstance
-        - Endpoint.Address
+    Value: { Fn::GetAtt: [RDSInstance, Endpoint.Address] }

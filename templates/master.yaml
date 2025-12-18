@@ -100,11 +100,12 @@ Resources:
 
   RDSStack:
     Type: AWS::CloudFormation::Stack
+    DependsOn: ASGAppStack
     Properties:
-      TemplateURL: modules/rds.yaml
+      TemplateURL: modules/rds.yamls
       Parameters:
         Environment: { Ref: Environment }
-        # Sintaxe corrigida para evitar erro E1017
+        VpcId: { Fn::GetAtt: [VPCStack, Outputs.VpcId] }
         PrivateSubnetA: 
           Fn::Select:
             - "0"
@@ -113,10 +114,11 @@ Resources:
           Fn::Select:
             - "1"
             - Fn::Split: [",", { Fn::GetAtt: [VPCStack, Outputs.PrivateDbSubnets] }]
-        # Alinhado com o que o rds.yaml espera (sem VpcId ou DBPassword que dão erro E3043)
-        RDSSecurityGroupId: { Fn::GetAtt: [ASGAppStack, Outputs.AppSecurityGroupId] }
+        AppSecurityGroupId: { Fn::GetAtt: [ASGAppStack, Outputs.AppSecurityGroupId] }
+        DBInstanceClass: { Ref: DBInstanceClass }
         DBName: { Ref: DBName }
         DBUsername: { Ref: DBUsername }
+        DBPassword: { Ref: DBPassword }
 
 # EdgeStack comentado para economizar conforme sua estrutura anterior
 #  EdgeStack:
