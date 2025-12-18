@@ -53,21 +53,35 @@ jobs:
             --template-body file://templates/master.yaml
 
       # ============================
-      # DEPLOY CLOUDFORMATION
+      # PACKAGING E DEPLOY (CORRIGIDO)
       # ============================
       - name: Deploy infrastructure
         run: |
           echo "Deploying environment: ${{ env.ENV }}"
           
-          # 1. Extraímos os parâmetros do JSON e formatamos corretamente para o CLI
-          # Usamos o jq para criar uma lista de Key=Value
+          # 1. Localizar o bucket do CDKToolkit para usar como armazenamento temporário
+          # O comando 'package' precisa de um bucket S3 para subir os arquivos da VPC/EC2
+          BUCKET_NAME=$(aws s3 ls | grep cdktoolkit | awk '{print $3}')
+          
+          if [ -z "$BUCKET_NAME" ]; then
+            echo "Erro: Bucket CDKToolkit não encontrado. Certifique-se de que o CDK Bootstrap foi executado."
+            exit 1
+          fi
+
+          # 2. Executar o PACKAGE
+          # Isso transforma caminhos locais (ex: ./vpc.yaml) em URLs do S3
+          aws cloudformation package \
+            --template-file templates/master.yaml \
+            --s3-bucket $BUCKET_NAME \
+            --output-template-file packaged.yaml
+
+          # 3. Extrair parâmetros do JSON
           PARAMS=$(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' environments/${{ env.ENV }}/params-${{ env.ENV }}.json)
 
-          # 2. Executamos o deploy passando a variável PARAMS
+          # 4. Executar o DEPLOY usando o arquivo GERADO (packaged.yaml)
           aws cloudformation deploy \
-            --template-file templates/master.yaml \
+            --template-file packaged.yaml \
             --stack-name ${{ env.STACK_NAME }} \
             --parameter-overrides $PARAMS \
             --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
             --no-fail-on-empty-changeset
-            
