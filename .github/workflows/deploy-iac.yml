@@ -59,17 +59,20 @@ jobs:
         run: |
           echo "Deploying environment: ${{ env.ENV }}"
           
-          # 1. Localizar o bucket do CDKToolkit para usar como armazenamento temporário
-          # O comando 'package' precisa de um bucket S3 para subir os arquivos da VPC/EC2
-          BUCKET_NAME=$(aws s3 ls | grep cdktoolkit | awk '{print $3}')
+          # 1. Busca robusta pelo Bucket de Assets (CDK ou CloudFormation)
+          # Tenta encontrar buckets que comecem com 'cdk-' ou contenham 'cdktoolkit'
+          BUCKET_NAME=$(aws s3 ls | awk '{print $3}' | grep -E "^cdk-|cdktoolkit" | head -n 1)
           
           if [ -z "$BUCKET_NAME" ]; then
-            echo "Erro: Bucket CDKToolkit não encontrado. Certifique-se de que o CDK Bootstrap foi executado."
+            echo "Erro: Nenhum bucket de deploy (CDK/CloudFormation) foi encontrado no S3."
+            echo "Certifique-se de que o ambiente foi inicializado (bootstrap)."
             exit 1
           fi
+          
+          echo "Usando bucket para upload: $BUCKET_NAME"
 
           # 2. Executar o PACKAGE
-          # Isso transforma caminhos locais (ex: ./vpc.yaml) em URLs do S3
+          # Isso faz o upload dos módulos (VPC, RDS, etc) e gera o packaged.yaml
           aws cloudformation package \
             --template-file templates/master.yaml \
             --s3-bucket $BUCKET_NAME \
@@ -78,7 +81,8 @@ jobs:
           # 3. Extrair parâmetros do JSON
           PARAMS=$(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' environments/${{ env.ENV }}/params-${{ env.ENV }}.json)
 
-          # 4. Executar o DEPLOY usando o arquivo GERADO (packaged.yaml)
+          # 4. Executar o DEPLOY usando o arquivo gerado
+          # Agora a AWS terá acesso às URLs corretas dos módulos no S3
           aws cloudformation deploy \
             --template-file packaged.yaml \
             --stack-name ${{ env.STACK_NAME }} \
