@@ -61,10 +61,9 @@ jobs:
       - name: Deploy infrastructure
         run: |
           echo "Deploying environment: $ENV"
-
-          # Converter JSON para parâmetro Key=Value
-          PARAMS=$(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' environments/$ENV/params-$ENV.json)
-
+          # Converte o JSON em pares Chave=Valor para o CloudFormation
+          PARAMS=$(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' environments/$ENV/params-$ENV.json | tr '\n' ' ')
+          
           aws cloudformation deploy \
             --template-file templates/master.yaml \
             --stack-name $STACK_NAME \

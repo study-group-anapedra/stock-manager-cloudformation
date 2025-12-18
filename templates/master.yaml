@@ -104,7 +104,7 @@ Resources:
       TemplateURL: modules/rds.yaml
       Parameters:
         Environment: { Ref: Environment }
-        # Removido VpcId, DBInstanceClass e DBPassword pois o módulo não os possui
+        # Sintaxe corrigida para extrair subnets sem erro E1017
         PrivateSubnetA: 
           Fn::Select:
             - "0"
@@ -113,6 +113,7 @@ Resources:
           Fn::Select:
             - "1"
             - Fn::Split: [",", { Fn::GetAtt: [VPCStack, Outputs.PrivateDbSubnets] }]
+        # Nome do parâmetro alinhado com o que o rds.yaml realmente espera
         RDSSecurityGroupId: { Fn::GetAtt: [ASGAppStack, Outputs.AppSecurityGroupId] }
         DBName: { Ref: DBName }
         DBUsername: { Ref: DBUsername }
