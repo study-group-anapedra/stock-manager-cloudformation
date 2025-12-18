@@ -45,6 +45,7 @@ Resources:
         VpcId: { Fn::GetAtt: [VPCStack, Outputs.VpcId] }
         PrivateWebSubnets: { Fn::GetAtt: [VPCStack, Outputs.PrivateWebSubnets] }
         WebTargetGroupArn: { Fn::GetAtt: [ALBWebStack, Outputs.WebTargetGroupArn] }
+        ALBWebSecurityGroupId: { Fn::GetAtt: [ALBWebStack, Outputs.ALBWebSecurityGroupId] }
         InstanceType: { Ref: WebInstanceType }
         LatestAMIId: { Ref: LatestAMIId }
         KeyName: { Ref: KeyName }
@@ -103,14 +104,18 @@ Resources:
       TemplateURL: modules/rds.yaml
       Parameters:
         Environment: { Ref: Environment }
-        ProjectName: { Ref: ProjectName }
-        VpcId: { Fn::GetAtt: [VPCStack, Outputs.VpcId] }
-        PrivateDbSubnets: { Fn::GetAtt: [VPCStack, Outputs.PrivateDbSubnets] }
-        AppSecurityGroupId: { Fn::GetAtt: [ASGAppStack, Outputs.AppSecurityGroupId] }
-        DBInstanceClass: { Ref: DBInstanceClass }
+        # Removido VpcId, DBInstanceClass e DBPassword pois o módulo não os possui
+        PrivateSubnetA: 
+          Fn::Select:
+            - "0"
+            - Fn::Split: [",", { Fn::GetAtt: [VPCStack, Outputs.PrivateDbSubnets] }]
+        PrivateSubnetB: 
+          Fn::Select:
+            - "1"
+            - Fn::Split: [",", { Fn::GetAtt: [VPCStack, Outputs.PrivateDbSubnets] }]
+        RDSSecurityGroupId: { Fn::GetAtt: [ASGAppStack, Outputs.AppSecurityGroupId] }
         DBName: { Ref: DBName }
         DBUsername: { Ref: DBUsername }
-        DBPassword: { Ref: DBPassword }
 
 # EDGE E OUTPUTS COMENTADOS (Para não gastar com domínio)
 #  EdgeStack:
